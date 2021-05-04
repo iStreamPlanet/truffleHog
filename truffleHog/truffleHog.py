@@ -15,6 +15,7 @@ import os
 import re
 import json
 import stat
+import time
 from enum import Enum
 from git import Repo
 from git import NULL_TREE
@@ -135,11 +136,13 @@ def main():
             if commit and not commit.startswith('#'):
                 commit_exclusions.append(commit)
 
+    start_time = time.perf_counter()
     output = find_strings(args.git_url, args.since_commit, args.max_depth, args.do_regex, do_entropy,
             output_format=OutputFormat[args.format.upper()], custom_regexes=regexes, branch=args.branch, 
             repo_path=args.repo_path, path_inclusions=path_inclusions, path_exclusions=path_exclusions, 
             commit_exclusions=commit_exclusions, allow=allow)
-    logging.info("Finished")
+    end_time = time.perf_counter()
+    logging.info("Finished in %.5fs", end_time - start_time)
     project_path = output["project_path"]
     if args.cleanup:
         clean_up(output)
@@ -254,7 +257,7 @@ def print_results(output_format, issue):
         prev_commit = prev_commit.split('\n', 1)[0]
     printableDiff = issue['printDiff']
     summaryDiff = issue['summaryDiff']
-    commitHash = issue['commitHash']
+    commitHash = "{}..{}".format(issue['nextCommitHash'], issue['commitHash'])
     reason = issue['reason']
     path = issue['path']
 
@@ -266,7 +269,7 @@ def print_results(output_format, issue):
         print(reason)
         dateStr = "{}Date: {}{}".format(bcolors.OKGREEN, commit_time, bcolors.ENDC)
         print(dateStr)
-        hashStr = "{}Hash: {}{}".format(bcolors.OKGREEN, commitHash, bcolors.ENDC)
+        hashStr = "{}Hashes: {}{}".format(bcolors.OKGREEN, commitHash, bcolors.ENDC)
         print(hashStr)
         filePath = "{}Filepath: {}{}".format(bcolors.OKGREEN, path, bcolors.ENDC)
         print(filePath)
@@ -326,6 +329,7 @@ def find_entropy(printableDiff, commit_time, branch_name, prev_commit, blob, com
         entropicDiff['printDiff'] = printableDiff
         entropicDiff['summaryDiff'] = summaryDiff
         entropicDiff['commitHash'] = prev_commit.hexsha
+        entropicDiff['nextCommitHash'] = commitHash
         entropicDiff['reason'] = "High Entropy"
     return entropicDiff
 
@@ -368,6 +372,7 @@ def regex_check(printableDiff, commit_time, branch_name, prev_commit, blob, comm
             foundRegex['summaryDiff'] = summaryDiff.strip()
             foundRegex['reason'] = key
             foundRegex['commitHash'] = prev_commit.hexsha
+            foundRegex['nextCommitHash'] = commitHash
             regex_matches.append(foundRegex)
     return regex_matches
 
@@ -462,10 +467,12 @@ def find_strings(git_url, since_commit=None, max_depth=1000000, do_regex=False, 
         prev_commit = None
         for curr_commit in repo.iter_commits(branch_name, max_count=max_depth):
             commitHash = curr_commit.hexsha
-            if commitHash in commit_exclusions:
-                logging.info("  %s:%s Excluded", remote_branch.name, commitHash)
+            prevCommitHash = prev_commit.hexsha if prev_commit else ""
+            if commitHash in commit_exclusions or prevCommitHash in commit_exclusions:
+                logging.info("  %s:%s-%s Excluded", remote_branch.name, commitHash, prevCommitHash, )
+                prev_commit = curr_commit
                 continue
-            logging.info("  %s:%s \"%s\"", remote_branch.name, commitHash, curr_commit.message.split('\n', 1)[0])
+            logging.info("  %s:%s-%s \"%s\"", remote_branch.name, commitHash, prevCommitHash, curr_commit.message.split('\n', 1)[0])
             if commitHash == since_commit:
                 since_commit_reached = True
                 break

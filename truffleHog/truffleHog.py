@@ -16,17 +16,20 @@ import re
 import json
 import stat
 import time
-from enum import Enum
+from enum import Enum, auto, unique
 from git import Repo
 from git import NULL_TREE
 from truffleHogRegexes.regexChecks import regexes
 
 
+@unique
 class OutputFormat(Enum):
-    NONE = 0
-    TERSE= 1
-    FULL = 2
-    JSON = 3
+    NONE = auto()
+    TERSE = auto()
+    TERSE_NC = auto()
+    FULL = auto()
+    FULL_NC = auto()
+    JSON = auto()
 
 
 def main():
@@ -36,7 +39,9 @@ def main():
                         help='Format for result output; '
                         'NONE No output, '
                         'TERSE First line of commit message and only matching lines from the diff, '
+                        'TERSE_NC First line of commit message and only matching lines from the diff with no coloring, '
                         'FULL Entire commit message and entire diff, '
+                        'FULL_NC Entire commit message and entire diff with no coloring, '
                         'JSON Entire commit message and entire diff in JSON format')
     parser.add_argument("--regex", dest="do_regex", action="store_true", help="Enable high signal regex checks")
     parser.add_argument("--rules", dest="rules", help="Ignore default regexes and source from json file")
@@ -136,9 +141,14 @@ def main():
             if commit and not commit.startswith('#'):
                 commit_exclusions.append(commit)
 
+    if args.format.endswith("_NC"):
+        global bcolors
+        bcolors = BCOLORS_OFF
+        args.format = args.format.split('_', 0)[0]
+
     start_time = time.perf_counter()
     output = find_strings(args.git_url, args.since_commit, args.max_depth, args.do_regex, do_entropy,
-            output_format=OutputFormat[args.format.upper()], custom_regexes=regexes, branch=args.branch, 
+            output_format=OutputFormat[args.format], custom_regexes=regexes, branch=args.branch, 
             repo_path=args.repo_path, path_inclusions=path_inclusions, path_exclusions=path_exclusions, 
             commit_exclusions=commit_exclusions, allow=allow)
     end_time = time.perf_counter()
@@ -233,7 +243,17 @@ def get_strings_of_set(word, char_set, threshold=20):
         strings.append(letters)
     return strings
 
-class bcolors:
+class BCOLORS_OFF:
+    HEADER = ''
+    OKBLUE = ''
+    OKGREEN = ''
+    WARNING = ''
+    FAIL = ''
+    ENDC = ''
+    BOLD = ''
+    UNDERLINE = ''
+
+class BCOLORS_ON:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
     OKGREEN = '\033[92m'
@@ -242,6 +262,8 @@ class bcolors:
     ENDC = '\033[0m'
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
+
+bcolors = BCOLORS_ON
 
 def clone_git_repo(git_url):
     logging.info("Cloning repo: %s", git_url)

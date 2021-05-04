@@ -227,21 +227,10 @@ def shannon_entropy(data, iterator):
 
 
 def get_strings_of_set(word, char_set, threshold=20):
-    count = 0
-    letters = ""
-    strings = []
-    for char in word:
-        if char in char_set:
-            letters += char
-            count += 1
-        else:
-            if count > threshold:
-                strings.append(letters)
-            letters = ""
-            count = 0
-    if count > threshold:
-        strings.append(letters)
-    return strings
+    if len(word) <= threshold:
+         return []
+    r = re.compile("[{}}]{{{},}}".format(char_set, threshold + 1))
+    return r.findall(word)
 
 class BCOLORS_OFF:
     HEADER = ''

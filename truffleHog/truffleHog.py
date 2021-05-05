@@ -144,7 +144,7 @@ def main():
     if args.format.endswith("_NC"):
         global bcolors
         bcolors = BCOLORS_OFF
-        args.format = args.format.split('_', 0)[0]
+        args.format = args.format.split('_', 1)[0]
 
     start_time = time.perf_counter()
     output = find_strings(args.git_url, args.since_commit, args.max_depth, args.do_regex, do_entropy,

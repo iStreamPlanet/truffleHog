@@ -157,6 +157,7 @@ def main():
     if args.cleanup:
         clean_up(output)
     if output["foundIssues"]:
+        print("{}FOUND ISSUES{}".format(bcolors.FAIL, bcolors.ENDC))
         sys.exit(1)
     else:
         sys.exit(0)
@@ -190,6 +191,15 @@ def check_rules(allow, check_rules):
 def read_pattern(r):
     if r.startswith("regex:"):
         return re.compile(r[6:])
+    if r.startswith("key:"):
+        [s, e] = r[4:].split("...", 2)
+        if len(s) < MIN_KEY_BOUNDARY or len(e) < MIN_KEY_BOUNDARY:
+            warning = "Key rule ignored, bounding strings must be 8 characters or more \"{}\"".format(r)
+            logging.warning(warning)
+            print("{}{}{}".format(bcolors.WARNING, warning, bcolors.ENDC))
+            return None
+        p = r"([+\-]-----BEGIN [A-Z ]+-----[\r\n][+\-]|)?{}[0-9a-zA-Z+/\r\n+\-]+{}([\r\n][+\-]-----END [A-Z ]+-----)?".format(re.escape(s), re.escape(e))
+        return re.compile(p)
     converted = re.escape(r)
     converted = re.sub(r"((\\*\r)?\\*\n|(\\+r)?\\+n)+", r"( |\\t|(\\r|\\n|\\\\+[rn])[-+]?)*", converted)
     return re.compile(converted)
@@ -491,10 +501,10 @@ def find_strings(git_url, since_commit=None, max_depth=1000000, do_regex=False, 
             commitHash = curr_commit.hexsha
             prevCommitHash = prev_commit.hexsha if prev_commit else ""
             if commitHash in commit_exclusions or prevCommitHash in commit_exclusions:
-                logging.info("  %s:%s-%s Excluded", remote_branch.name, commitHash, prevCommitHash, )
+                logging.info("  %s:%s..%s Excluded", remote_branch.name, commitHash, prevCommitHash, )
                 prev_commit = curr_commit
                 continue
-            logging.info("  %s:%s-%s \"%s\"", remote_branch.name, commitHash, prevCommitHash, curr_commit.message.split('\n', 1)[0])
+            logging.info("  %s:%s..%s \"%s\"", remote_branch.name, commitHash, prevCommitHash, curr_commit.message.split('\n', 1)[0])
             if commitHash == since_commit:
                 since_commit_reached = True
                 break

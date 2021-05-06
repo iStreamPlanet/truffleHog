@@ -21,6 +21,8 @@ from git import Repo
 from git import NULL_TREE
 from truffleHogRegexes.regexChecks import regexes
 
+# For "key:" allow rules each part of the key boundary must have at least MIN_KEY_BOUNDARY characters.
+MIN_KEY_BOUNDARY = 8
 
 @unique
 class OutputFormat(Enum):
@@ -107,13 +109,19 @@ def main():
             del regexes[regex]
         for regex in rules:
             regexes[regex] = rules[regex]
+            logging.debug("Regex \"%s\": %s", regex, regexes[regex].pattern)
     allow = {}
     if args.allow:
         try:
             with open(args.allow, "r") as allowFile:
                 allow = json.loads(allowFile.read())
-                for rule in allow:
-                    allow[rule] = read_pattern(allow[rule])
+                for rule in list(allow.keys()):
+                    p = read_pattern(allow[rule])
+                    if not p:
+                        del allow[rule]
+                        continue
+                    allow[rule] = p
+                    logging.debug("Allow \"%s\": %s", rule, allow[rule].pattern)
         except (IOError, ValueError) as e:
             raise("Error reading allow file")
     do_entropy = str2bool(args.do_entropy)
@@ -190,6 +198,15 @@ def check_rules(allow, check_rules):
 def read_pattern(r):
     if r.startswith("regex:"):
         return re.compile(r[6:])
+    if r.startswith("key:"):
+        [s, e] = r[4:].split("...", 2)
+        if len(s) < MIN_KEY_BOUNDARY or len(e) < MIN_KEY_BOUNDARY:
+            warning = "Key rule ignored, bounding strings must be 8 characters or more \"{}\"".format(r)
+            logging.warning(warning)
+            print("{}{}{}".format(bcolors.WARNING, warning, bcolors.WARNING))
+            return None
+        p = r"([+\-]-----BEGIN [A-Z ]+-----[\r\n][+\-]|)?{}[0-9a-zA-Z+/\r\n+\-]+{}([\r\n][+\-]-----END [A-Z ]+-----)?".format(re.escape(s), re.escape(e))
+        return re.compile(p)
     converted = re.escape(r)
     converted = re.sub(r"((\\*\r)?\\*\n|(\\+r)?\\+n)+", r"( |\\t|(\\r|\\n|\\\\+[rn])[-+]?)*", converted)
     return re.compile(converted)

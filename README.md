@@ -78,10 +78,12 @@ To explicitly allow particular secrets (e.g. self-signed keys used only for loca
 {
     "local self signed test key": "-----BEGIN EC PRIVATE KEY-----\nfoobar123\n-----END EC PRIVATE KEY-----",
     "git cherry pick SHAs": "regex:Cherry picked from .*",
+    "Public certificate MIIEexDD...XmWEX4AX": "key:MIIEexDD...XmWEX4AX"
 }
 ```
 
-Note that values beginning with `regex:` will be used as regular expressions. Values without this will be literal, with some automatic conversions (e.g. flexible newlines).
+* Values beginning with `regex:` will be used as regular expressions. Values without this will be literal, with some automatic conversions (e.g. flexible newlines).
+* Values beginning with `key:` will use a custom regex to match a multi-line key or certificate which may include start and end lines `-----BEGIN EC PRIVATE KEY-----`/`-----END EC PRIVATE KEY-----` or `-----BEGIN CERTIFICATE-----`/`-----END CERTIFICATE-----` etc.
 
 ## How it works
 This module will go through the entire commit history of each branch, and check each diff from each commit, and check for secrets. This is both by regex and by entropy. For entropy checks, truffleHog will evaluate the shannon entropy for both the base64 char set and hexidecimal char set for every blob of text greater than 20 characters comprised of those character sets in each diff. If at any point a high entropy string >20 characters is detected, it will print to the screen.
@@ -89,14 +91,16 @@ This module will go through the entire commit history of each branch, and check 
 ## Help
 
 ```
-usage: truffleHog.py [-h] [--json] [--format {NONE,TERSE,FULL,JSON}] [--regex]
-                     [--rules RULES] [--allow ALLOW] [--entropy DO_ENTROPY]
-                     [--since_commit SINCE_COMMIT] [--max_depth MAX_DEPTH]
-                     [--branch BRANCH] [-i INCLUDE_PATHS_FILE]
-                     [-x EXCLUDE_PATHS_FILE] [--repo_path REPO_PATH]
-                     [--cleanup]
+usage: truffleHog.py [-h] [--json]
+                     [--format {NONE,TERSE,TERSE_NC,FULL,FULL_NC,JSON}]
+                     [--regex] [--rules RULES] [--allow ALLOW]
+                     [--entropy DO_ENTROPY] [--since_commit SINCE_COMMIT]
+                     [--max_depth MAX_DEPTH] [--branch BRANCH]
+                     [-i INCLUDE_PATHS_FILE] [-x EXCLUDE_PATHS_FILE]
+                     [--exclude_commits EXCLUDE_COMMITS_FILE]
+                     [--repo_path REPO_PATH] [--cleanup]
                      [--log {CRITICAL,FATAL,ERROR,WARN,WARNING,INFO,DEBUG,NOTSET}]
-                     [--log_file LOG_FILE]
+                     [--log_file LOG_FILE] [--check CHECK_RULES]
                      git_url
 
 Find secrets hidden in the depths of git.
@@ -107,12 +111,15 @@ positional arguments:
 optional arguments:
   -h, --help            show this help message and exit
   --json                Output in JSON format, equivalent to --format=JSON
-  --format {NONE,TERSE,FULL,JSON}
+  --format {NONE,TERSE,TERSE_NC,FULL,FULL_NC,JSON}
                         Format for result output; NONE No output, TERSE First
                         line of commit message and only matching lines from
-                        the diff, FULL Entire commit message and entire diff,
-                        JSON Entire commit message and entire diff in JSON
-                        format
+                        the diff, TERSE_NC First line of commit message and
+                        only matching lines from the diff with no coloring,
+                        FULL Entire commit message and entire diff, FULL_NC
+                        Entire commit message and entire diff with no
+                        coloring, JSON Entire commit message and entire diff
+                        in JSON format
   --regex               Enable high signal regex checks
   --rules RULES         Ignore default regexes and source from json file
   --allow ALLOW         Explicitly allow regexes from json list file
@@ -137,6 +144,9 @@ optional arguments:
                         comments and are ignored. If empty or not provided
                         (default), no Git object paths are excluded unless
                         effectively excluded via the --include_paths option.
+  --exclude_commits EXCLUDE_COMMITS_FILE
+                        File with commit hashes (one per line). lines starting
+                        with "#" are treated as comments and are ignored.
   --repo_path REPO_PATH
                         Path to the cloned repo. If provided, git_url will not
                         be used
@@ -144,6 +154,7 @@ optional arguments:
   --log {CRITICAL,FATAL,ERROR,WARN,WARNING,INFO,DEBUG,NOTSET}
                         Set logging level
   --log_file LOG_FILE   Write log to file
+  --check CHECK_RULES   Check rules
 ```
 
 ## Running with Docker

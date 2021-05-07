@@ -207,7 +207,7 @@ def read_pattern(r):
             logging.warning(warning)
             print("{}{}{}".format(bcolors.WARNING, warning, bcolors.ENC))
             return None
-        p = r"([+\-]-----BEGIN [A-Z ]+-----[\r\n][+\-]|)?{}[0-9a-zA-Z+/\r\n+\-]+{}([\r\n][+\-]-----END [A-Z ]+-----)?".format(re.escape(s), re.escape(e))
+        p = r"([+\-]\s*-----BEGIN [A-Z ]+-----[\r\n][+\-]\s*)?{}[0-9a-zA-Z+/]+[\r\n]([+\-]\s*[0-9a-zA-Z+/]+[\r\n])+([+\-]\s*[0-9a-zA-Z+/]+){}[\r\n]([+\-]\s*-----END [A-Z ]+-----)?".format(re.escape(s), re.escape(e))
         return re.compile(p)
     converted = re.escape(r)
     converted = re.sub(r"((\\*\r)?\\*\n|(\\+r)?\\+n)+", r"( |\\t|(\\r|\\n|\\\\+[rn])[-+]?)*", converted)
@@ -496,12 +496,12 @@ def find_strings(git_url, since_commit=None, max_depth=1000000, do_regex=False, 
     already_searched = set()
     output_dir = tempfile.mkdtemp()
 
-    if branch:
-        branches = repo.remotes.origin.fetch(branch)
-    else:
-        branches = repo.remotes.origin.fetch()
+    branches = repo.remotes.origin.fetch()
 
     for remote_branch in branches:
+        if branch and branch != remote_branch.name:
+            logging.info("Branch: %s Excluded", remote_branch.name)
+            continue
         logging.info("Branch: %s", remote_branch.name)
         since_commit_reached = False
         branch_name = remote_branch.name

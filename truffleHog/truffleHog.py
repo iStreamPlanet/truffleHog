@@ -85,8 +85,8 @@ def main():
     parser.set_defaults(log_file=None)
     parser.set_defaults(validate=None)
     args = parser.parse_args()
-    if not args.log_level and args.log_file:
-        args.log_level = "WARNING"
+    if not args.log_level:
+        args.log_level = "ERROR" if not args.log_file else "WARNING"
     if args.log_file and os.path.exists(args.log_file):
         try:
             os.remove(args.log_file)
@@ -165,9 +165,10 @@ def main():
     if args.cleanup:
         clean_up(output)
     if output["foundIssues"]:
-        print("{}FOUND ISSUES{}".format(bcolors.FAIL, bcolors.ENDC))
+        print("{}FOUND ISSUES!{}".format(bcolors.FAIL, bcolors.ENDC))
         sys.exit(1)
     else:
+        print("{}Finished scan. No issues found.{}".format(bcolors.OKGREEN, bcolors.ENDC))
         sys.exit(0)
 
 def check_rules(allow, check_rules):

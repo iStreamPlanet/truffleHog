@@ -1,7 +1,6 @@
 
 
 # truffleHog
-[![codecov](https://codecov.io/gh/trufflesecurity/truffleHog/branch/master/graph/badge.svg)](https://codecov.io/gh/trufflesecurity/truffleHog)
 
 Searches through git repositories for secrets, digging deep into commit history and branches. This is effective at finding secrets accidentally committed.
 
